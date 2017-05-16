@@ -12,6 +12,7 @@ angular.module('oi.select')
             editItem:       false,
             newItem:        false,
             closeList:      true,
+            enableSelectAll:      false,
             saveTrigger:    'enter tab blur',
             minlength:      0
         },
@@ -95,6 +96,7 @@ angular.module('oi.select')
             if (event && event.target.nodeName !== 'INPUT') return; //for IE
 
             isBlur = false;
+            isFocused = false;
 
             if (isMousedown) {
                 isBlur = true;
@@ -345,6 +347,7 @@ angular.module('oi.select')
         require: 'ngModel',
         scope: {},
         compile: function (element, attrs) {
+
             var optionsExp = attrs.oiOptions,
                 match = optionsExp ? optionsExp.match(NG_OPTIONS_REGEXP) : ['', 'i', '', '', '', 'i', '', '', ''];
 
@@ -467,6 +470,11 @@ angular.module('oi.select')
                     element[0].removeAttribute('tabindex');
                 }
 
+                if (angular.isDefined(attrs.enableSelectAll)) {
+                   //console.log(attrs.enableSelectAll)
+                    scope.enableSelectAll = attrs.enableSelectAll;
+                }
+
                 if (options.maxlength) {
                     inputElement.attr('maxlength', options.maxlength);
                 }
@@ -481,6 +489,11 @@ angular.module('oi.select')
                 });
 
                 scope.$on('$destroy', unbindFocusBlur);
+
+                scope.$parent.$watch(attrs.enableSelectAll, function(value) {
+                   // multipleLimit = Number(value) || Infinity;
+
+                });
 
                 scope.$parent.$watch(attrs.multipleLimit, function(value) {
                      multipleLimit = Number(value) || Infinity;
@@ -540,7 +553,7 @@ angular.module('oi.select')
 
                     //length less then minlength
                     if (String(inputValue).length < options.minlength) return;
-                    
+
                     //We don't get matches if nothing added into matches list
                     if (inputValue !== oldValue && (!scope.oldQuery || inputValue) && !matchesWereReset) {
                         listElement[0].scrollTop = 0;
@@ -594,7 +607,17 @@ angular.module('oi.select')
                     lastQuery = scope.query;
 
                     //duplicate
-                    if (multiple && oiUtils.intersection(scope.output, [option], trackBy, trackBy).length) return;
+                    if (multiple && oiUtils.intersection(scope.output, [option], trackBy, trackBy).length) {
+                        let ix;
+                        scope.output.find(function(item, i){
+                            if(angular.equals(item, option)){
+                                ix = i;
+                                return true;
+                            }
+                        });
+                        scope.removeItem(ix);
+                        return;
+                    }
 
                     //limit is reached
                     if (scope.output.length >= multipleLimit) {
@@ -606,7 +629,9 @@ angular.module('oi.select')
                     var optionGroup = scope.groups[getGroupName(option)] = scope.groups[getGroupName(option)] || [];
                     var modelOption = selectAsFn ? selectAs(option) : option;
 
-                    optionGroup.splice(optionGroup.indexOf(option), 1);
+                    if(!multiple) {
+                        optionGroup.splice(optionGroup.indexOf(option), 1);
+                    }
 
                     if (multiple) {
                         ctrl.$setViewValue(angular.isArray(ctrl.$modelValue) ? ctrl.$modelValue.concat(modelOption) : [modelOption]);
@@ -635,7 +660,6 @@ angular.module('oi.select')
                     if (attrs.disabled || multiple && position < 0) return;
 
                     removedItem = multiple ? ctrl.$modelValue[position] : ctrl.$modelValue;
-
                     $q.when(removeItemFn(scope.$parent, {$item: removedItem}))
                         .then(function() {
                             if (!multiple && !scope.inputHide) return;
@@ -774,6 +798,10 @@ angular.module('oi.select')
 
                 scope.getDisableWhen = getDisableWhen;
 
+                scope.isSelected = function(option) {
+                    return scope.output.find(function(item){return angular.equals(item, option)});
+                };
+
 
                 resetMatches();
 
@@ -808,7 +836,7 @@ angular.module('oi.select')
                 function click(event) {
                     //query length less then minlength
                     if (scope.query.length < options.minlength) return;
-                    
+
                     //option is disabled
                     if (oiUtils.contains(element[0], event.target, 'disabled')) return;
 
@@ -941,7 +969,6 @@ angular.module('oi.select')
 
                     timeoutPromise = $timeout(function() {
                         var values = valuesFn(scope.$parent, {$query: query, $selectedAs: selectedAs}) || '';
-
                         scope.selectorPosition = options.newItem === 'prompt' ? false : 0;
 
                         if (!query && !selectedAs) {
@@ -980,7 +1007,8 @@ angular.module('oi.select')
                                     var outputValues = multiple ? scope.output : [];
                                     var filteredList = listFilter(values, query, getLabel, listFilterOptionsFn(scope.$parent), element);
                                     var withoutIntersection = oiUtils.intersection(filteredList, outputValues, trackBy, trackBy, true);
-                                    var filteredOutput = filter(withoutIntersection);
+
+                                    var filteredOutput = multiple? filteredList : filter(withoutIntersection);
 
                                     //add element with placeholder to empty list
                                     if (!filteredOutput.length) {
@@ -993,7 +1021,6 @@ angular.module('oi.select')
                                             filteredOutput = [context[valueName]]
                                         }
                                     }
-
                                     scope.groups = group(filteredOutput);
                                 }
                                 updateGroupPos();
@@ -1176,4 +1203,4 @@ angular.module('oi.select')
         return input;
     };
 });
-angular.module("oi.select").run(["$templateCache", function($templateCache) {$templateCache.put("src/template.html","<div class=select-search><ul class=select-search-list><li class=\"btn btn-default btn-xs select-search-list-item select-search-list-item_selection\" ng-hide=listItemHide ng-repeat=\"item in output track by $index\" ng-class=\"{focused: backspaceFocus && $last}\" ng-click=removeItem($index) ng-bind-html=getSearchLabel(item)></li><li class=\"select-search-list-item select-search-list-item_input\" ng-class=\"{\'select-search-list-item_hide\': inputHide}\"><input autocomplete=off ng-model=query ng-keyup=keyUp($event) ng-keydown=keyDown($event)></li><li class=\"select-search-list-item select-search-list-item_loader\" ng-show=showLoader></li></ul></div><div class=select-dropdown ng-show=isOpen><ul ng-if=isOpen class=select-dropdown-optgroup ng-repeat=\"(group, options) in groups\"><div class=select-dropdown-optgroup-header ng-if=\"group && options.length\" ng-bind-html=\"getGroupLabel(group, options)\"></div><li class=select-dropdown-optgroup-option ng-init=\"isDisabled = getDisableWhen(option)\" ng-repeat=\"option in options\" ng-class=\"{\'active\': selectorPosition === groupPos[group] + $index, \'disabled\': isDisabled, \'ungroup\': !group}\" ng-click=\"isDisabled || addItem(option)\" ng-mouseenter=\"setSelection(groupPos[group] + $index)\" ng-bind-html=getDropdownLabel(option)></li></ul></div>");}]);
+angular.module("oi.select").run(["$templateCache", function($templateCache) {$templateCache.put("src/template.html","<div class=select-search><ul class=select-search-list><li class=\"btn btn-default btn-xs select-search-list-item select-search-list-item_selection\" ng-hide=listItemHide ng-repeat=\"item in output track by $index\" ng-class=\"{focused: backspaceFocus && $last}\" ng-click=removeItem($index) ng-bind-html=getSearchLabel(item)></li><li class=\"select-search-list-item select-search-list-item_input\" ng-class=\"{\'select-search-list-item_hide\': inputHide}\"><input autocomplete=off ng-model=query ng-keyup=keyUp($event) ng-keydown=keyDown($event)></li><li class=\"select-search-list-item select-search-list-item_loader\" ng-show=showLoader></li></ul></div><div class=select-dropdown ng-show=isOpen><ul ng-if=isOpen class=select-dropdown-optgroup ng-repeat=\"(group, options) in groups\"><div class=select-dropdown-optgroup-header ng-if=\"group && options.length\" ng-bind-html=\"getGroupLabel(group, options)\"></div><li class=select-dropdown-optgroup-option ng-init=\"isDisabled = getDisableWhen(option)\" ng-repeat=\"option in options\" ng-class=\"{ \'active\': selectorPosition === groupPos[group] + $index, \'disabled\': isDisabled, \'ungroup\': !group, \'selected\': isSelected(option) }\" ng-click=\"isDisabled || addItem(option, $index)\" ng-mouseenter=\"setSelection(groupPos[group] + $index)\" ng-bind-html=getDropdownLabel(option)></li></ul></div>");}]);

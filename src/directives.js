@@ -10,6 +10,7 @@ angular.module('oi.select')
         require: 'ngModel',
         scope: {},
         compile: function (element, attrs) {
+
             var optionsExp = attrs.oiOptions,
                 match = optionsExp ? optionsExp.match(NG_OPTIONS_REGEXP) : ['', 'i', '', '', '', 'i', '', '', ''];
 
@@ -132,6 +133,11 @@ angular.module('oi.select')
                     element[0].removeAttribute('tabindex');
                 }
 
+                if (angular.isDefined(attrs.enableSelectAll)) {
+                   //console.log(attrs.enableSelectAll)
+                    scope.enableSelectAll = attrs.enableSelectAll;
+                }
+
                 if (options.maxlength) {
                     inputElement.attr('maxlength', options.maxlength);
                 }
@@ -146,6 +152,11 @@ angular.module('oi.select')
                 });
 
                 scope.$on('$destroy', unbindFocusBlur);
+
+                scope.$parent.$watch(attrs.enableSelectAll, function(value) {
+                   // multipleLimit = Number(value) || Infinity;
+
+                });
 
                 scope.$parent.$watch(attrs.multipleLimit, function(value) {
                      multipleLimit = Number(value) || Infinity;
@@ -205,7 +216,7 @@ angular.module('oi.select')
 
                     //length less then minlength
                     if (String(inputValue).length < options.minlength) return;
-                    
+
                     //We don't get matches if nothing added into matches list
                     if (inputValue !== oldValue && (!scope.oldQuery || inputValue) && !matchesWereReset) {
                         listElement[0].scrollTop = 0;
@@ -259,7 +270,17 @@ angular.module('oi.select')
                     lastQuery = scope.query;
 
                     //duplicate
-                    if (multiple && oiUtils.intersection(scope.output, [option], trackBy, trackBy).length) return;
+                    if (multiple && oiUtils.intersection(scope.output, [option], trackBy, trackBy).length) {
+                        let ix;
+                        scope.output.find(function(item, i){
+                            if(angular.equals(item, option)){
+                                ix = i;
+                                return true;
+                            }
+                        });
+                        scope.removeItem(ix);
+                        return;
+                    }
 
                     //limit is reached
                     if (scope.output.length >= multipleLimit) {
@@ -271,7 +292,9 @@ angular.module('oi.select')
                     var optionGroup = scope.groups[getGroupName(option)] = scope.groups[getGroupName(option)] || [];
                     var modelOption = selectAsFn ? selectAs(option) : option;
 
-                    optionGroup.splice(optionGroup.indexOf(option), 1);
+                    if(!multiple) {
+                        optionGroup.splice(optionGroup.indexOf(option), 1);
+                    }
 
                     if (multiple) {
                         ctrl.$setViewValue(angular.isArray(ctrl.$modelValue) ? ctrl.$modelValue.concat(modelOption) : [modelOption]);
@@ -300,7 +323,6 @@ angular.module('oi.select')
                     if (attrs.disabled || multiple && position < 0) return;
 
                     removedItem = multiple ? ctrl.$modelValue[position] : ctrl.$modelValue;
-
                     $q.when(removeItemFn(scope.$parent, {$item: removedItem}))
                         .then(function() {
                             if (!multiple && !scope.inputHide) return;
@@ -439,6 +461,10 @@ angular.module('oi.select')
 
                 scope.getDisableWhen = getDisableWhen;
 
+                scope.isSelected = function(option) {
+                    return scope.output.find(function(item){return angular.equals(item, option)});
+                };
+
 
                 resetMatches();
 
@@ -473,7 +499,7 @@ angular.module('oi.select')
                 function click(event) {
                     //query length less then minlength
                     if (scope.query.length < options.minlength) return;
-                    
+
                     //option is disabled
                     if (oiUtils.contains(element[0], event.target, 'disabled')) return;
 
@@ -606,7 +632,6 @@ angular.module('oi.select')
 
                     timeoutPromise = $timeout(function() {
                         var values = valuesFn(scope.$parent, {$query: query, $selectedAs: selectedAs}) || '';
-
                         scope.selectorPosition = options.newItem === 'prompt' ? false : 0;
 
                         if (!query && !selectedAs) {
@@ -645,7 +670,8 @@ angular.module('oi.select')
                                     var outputValues = multiple ? scope.output : [];
                                     var filteredList = listFilter(values, query, getLabel, listFilterOptionsFn(scope.$parent), element);
                                     var withoutIntersection = oiUtils.intersection(filteredList, outputValues, trackBy, trackBy, true);
-                                    var filteredOutput = filter(withoutIntersection);
+
+                                    var filteredOutput = multiple? filteredList : filter(withoutIntersection);
 
                                     //add element with placeholder to empty list
                                     if (!filteredOutput.length) {
@@ -658,7 +684,6 @@ angular.module('oi.select')
                                             filteredOutput = [context[valueName]]
                                         }
                                     }
-
                                     scope.groups = group(filteredOutput);
                                 }
                                 updateGroupPos();

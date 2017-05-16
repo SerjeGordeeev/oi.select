@@ -10,10 +10,13 @@ var minifyCss     = require('gulp-minify-css');
 var minifyHtml    = require('gulp-minify-html');
 var uglify        = require('gulp-uglify');
 var stylus        = require('gulp-stylus');
+var sass        = require('gulp-sass');
 var KarmaServer   = require('karma').Server;
+/*
 var autoprefixer  = require('autoprefixer-stylus')({
     browsers: ["ff >= 20", "chrome >= 35", "safari >= 7", "ios >= 7", "android >= 4", "opera >= 12.1", "ie >= 10"]
 });
+*/
 
 var paths = {
     root:     __dirname,
@@ -36,10 +39,9 @@ gulp.task('clean', function() {
 });
 
 gulp.task('compileStyles', function() {
-    return gulp.src(path.join(paths.src, 'style.styl'))
-        .pipe(stylus({
-            use: autoprefixer
-        }))
+
+    return gulp.src(path.join(paths.src, 'style.scss'))
+        .pipe(sass())
         .pipe(concat('select.css'))
         .pipe(gulp.dest(paths.dist))
         .pipe(minifyCss())
@@ -65,20 +67,20 @@ gulp.task('compileScripts', function() {
     scriptStream
         .pipe(concat('select.js'))
         .pipe(gulp.dest(paths.dist))
-        .pipe(uglify())
+        /*.pipe(uglify())*/
         .pipe(rename('select.min.js'))
         .pipe(gulp.dest(paths.dist));
 
     series(scriptStream, templateStream)
         .pipe(concat('select-tpls.js'))
         .pipe(gulp.dest(paths.dist))
-        .pipe(uglify())
+        /*.pipe(uglify())*/
         .pipe(rename('select-tpls.min.js'))
         .pipe(gulp.dest(paths.dist));
 });
 
 gulp.task('watch', function() {
-    gulp.watch(path.join(paths.src, '**/*.styl'), ['compileStyles']);
+    gulp.watch(path.join(paths.src, '**/*.scss'), ['compileStyles']);
 });
 
 gulp.task('test', function(done) {

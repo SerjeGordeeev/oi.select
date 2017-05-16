@@ -33,7 +33,16 @@ multiple
                     ng-model="bundle2"
                     multiple
                     oi-select-options="{
-                        closeList: false
+                        closeList: false,
+                        debounce:       500,
+                        searchFilter:   'oiSelectCloseIcon',
+                        dropdownFilter: 'oiSelectHighlight',
+                        listFilter:     'oiSelectAscSort',
+                        groupFilter:    'oiSelectGroup',
+                        editItem:       false,
+                        newItem:        false,
+                        saveTrigger:    'enter tab blur',
+                        minlength:      0
                     }"
                     placeholder="Select"
                     ></oi-select>
@@ -61,12 +70,13 @@ oi-select-options="{
     <div class="row">
         <div class="col-md-8">
             <oi-select
-                    oi-options="item.name for item in shopArr track by item.id"
+                    oi-options="item.name for item in shopArr track by $index"
                     ng-model="bundle3"
                     multiple
                     multiple-placeholder="add"
                     list-placeholder="not found"
                     placeholder="Select"
+                    enable-select-all="true"
                     ></oi-select>
         </div>
     </div>

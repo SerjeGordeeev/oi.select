@@ -15,6 +15,7 @@
             ng-show="showLoader"></li>
     </ul>
 </div>
+
 <div class="select-dropdown" ng-show="isOpen">
     <ul ng-if="isOpen" class="select-dropdown-optgroup" ng-repeat="(group, options) in groups">
         <div class="select-dropdown-optgroup-header"
@@ -23,9 +24,14 @@
         <li class="select-dropdown-optgroup-option"
             ng-init="isDisabled = getDisableWhen(option)"
             ng-repeat="option in options"
-            ng-class="{'active': selectorPosition === groupPos[group] + $index, 'disabled': isDisabled, 'ungroup': !group}"
-            ng-click="isDisabled || addItem(option)"
+            ng-class="{
+                'active': selectorPosition === groupPos[group] + $index,
+                'disabled': isDisabled, 'ungroup': !group,
+                'selected': isSelected(option)
+             }"
+            ng-click="isDisabled || addItem(option, $index)"
             ng-mouseenter="setSelection(groupPos[group] + $index)"
             ng-bind-html="getDropdownLabel(option)"></li>
     </ul>
 </div>
+
